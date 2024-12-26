@@ -1644,6 +1644,7 @@ dependencies = [
  "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
+ "thiserror 2.0.9",
  "tokio",
 ]
 
