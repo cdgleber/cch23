@@ -1,10 +1,6 @@
-use axum::{
-    extract::Json,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{get, post},
-    Router,
-};
+use std::collections::HashMap;
+
+use axum::{extract::Json, http::StatusCode, response::IntoResponse, routing::post, Router};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,22 +29,46 @@ async fn calc_strength(Json(reindeers): Json<Vec<Reindeer>>) -> impl IntoRespons
 }
 
 async fn contest_winners(Json(reindeers): Json<Vec<Contestent>>) -> impl IntoResponse {
-    let sum_strength = reindeers
+    let fastest = reindeers
         .iter()
-        .reduce(|acc, r| acc.speed.max(r.speed))
+        .reduce(|a, b| if a.speed > b.speed { a } else { b })
         .unwrap();
 
-    let ret = format!("ad");
-    (StatusCode::OK, ret).into_response()
+    let tallest = reindeers.iter().max_by_key(|r| r.height).unwrap();
+    let magician = reindeers.iter().max_by_key(|r| r.snow_magic_power).unwrap();
+    let candiest = reindeers
+        .iter()
+        .max_by_key(|r| r.candies_eaten_yesterday)
+        .unwrap();
+
+    let fastest_str = format!(
+        "Speeding past the finish line with a strength of {} is {}",
+        fastest.strength, fastest.name
+    );
+    let tallest_str = format!(
+        "{} is standing tall with his {} cm wide antlers",
+        tallest.name, tallest.antler_width
+    );
+    let magician_str = format!(
+        "{} could blast you away with a snow magic power of {}",
+        magician.name, magician.snow_magic_power
+    );
+    let consumer_str = format!(
+        "{} ate lots of candies, but also some {}",
+        candiest.name, candiest.favorite_food
+    );
+
+    let mut winners: HashMap<&str, String> = HashMap::new();
+    winners.insert("fastest", fastest_str);
+    winners.insert("tallest", tallest_str);
+    winners.insert("magician", magician_str);
+    winners.insert("consumer", consumer_str);
+
+    (StatusCode::OK, serde_json::to_string(&winners).unwrap()).into_response()
 }
 
-// {
-//     "fastest": "Speeding past the finish line with a strength of 5 is Dasher",
-//     "tallest": "Dasher is standing tall with his 36 cm wide antlers",
-//     "magician": "Dasher could blast you away with a snow magic power of 9001",
-//     "consumer": "Dancer ate lots of candies, but also some grass"
-//   }
-
 pub fn router() -> Router {
-    Router::new().route("/strength", post(calc_strength))
+    Router::new()
+        .route("/strength", post(calc_strength))
+        .route("/contest", post(contest_winners))
 }
