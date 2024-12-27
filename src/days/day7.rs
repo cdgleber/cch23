@@ -60,11 +60,59 @@ async fn decode_recipe(cookie: Cookies, headers: HeaderMap) -> Result<String, Ap
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BakeItems {
-    recipe: HashMap<String, u32>,
-    pantry: HashMap<String, u32>,
+    recipe: HashMap<String, i64>,
+    pantry: HashMap<String, i64>,
 }
 
-async fn bake_recipe(cookie: Cookies, headers: HeaderMap) -> Result<String, AppError> {
+#[derive(Debug, Serialize, Deserialize)]
+struct BakedCookies {
+    cookies: i64,
+    pantry: HashMap<String, i64>,
+}
+
+impl BakeItems {
+    fn cookies_available(&self) -> i64 {
+        let mut cookies_possible = Vec::new();
+        for (ingredient, amount_needed) in &self.recipe {
+            if let Some(pantry_amount) = &self.pantry.get(ingredient) {
+                if amount_needed < pantry_amount {
+                    cookies_possible.push(**pantry_amount / *amount_needed);
+                } else if *amount_needed != 0i64 {
+                    return 0i64;
+                }
+            } else {
+                if *amount_needed != 0i64 {
+                    return 0i64;
+                }
+            }
+        }
+
+        *cookies_possible.iter().min().unwrap()
+    }
+
+    fn remaining_pantry(&self) -> Self {
+        let cookies_to_bake = self.cookies_available();
+        let mut new_bake_items = BakeItems {
+            recipe: HashMap::<String, i64>::new(),
+            pantry: HashMap::<String, i64>::new(),
+        };
+
+        for (ingredient, pantry_amount) in &self.pantry {
+            if let Some(amount_needed) = &self.recipe.get(ingredient) {
+                let new_amount = pantry_amount.saturating_sub(cookies_to_bake * **amount_needed);
+                new_bake_items.pantry.insert(ingredient.clone(), new_amount);
+            } else {
+                new_bake_items.pantry.insert(ingredient.clone(), *pantry_amount);
+            }
+        }
+
+        println!("{:?}", new_bake_items);
+
+        new_bake_items
+    }
+}
+
+async fn bake_recipe(cookie: Cookies, headers: HeaderMap) -> Result<Json<BakedCookies>, AppError> {
     if headers.get("Cookie").is_none() {
         println!("Missing Cookie");
         return Err(AppError::MissingRecipe);
@@ -88,9 +136,14 @@ async fn bake_recipe(cookie: Cookies, headers: HeaderMap) -> Result<String, AppE
         ::from_str(&String::from_utf8(recipe_bytes).unwrap())
         .unwrap();
 
-    // todo!("implement bake logic");
+    let baked = bake_items.remaining_pantry();
 
-    Ok(format!("{:?}", bake_items))
+    let baked_cookies = BakedCookies {
+        cookies: bake_items.cookies_available(),
+        pantry: baked.pantry,
+    };
+
+    Ok(Json(baked_cookies))
 }
 
 pub fn router() -> Router {
