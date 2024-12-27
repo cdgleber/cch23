@@ -1,13 +1,14 @@
 use axum::{
-    extract::{ Json, Query },
+    extract::{Json, Query},
     http::StatusCode,
-    response::{ IntoResponse, Response },
+    response::{IntoResponse, Response},
     routing::post,
     Router,
 };
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 enum AppError {
     #[error("Out of range")]
@@ -17,7 +18,10 @@ enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            AppError::OutOfRange => (StatusCode::RANGE_NOT_SATISFIABLE, "Out of Range".to_string()),
+            AppError::OutOfRange => (
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                "Out of Range".to_string(),
+            ),
         };
 
         (status, error_message).into_response()
@@ -34,7 +38,7 @@ struct Pagination {
 
 async fn sub_slice_names(
     pagination: Query<Pagination>,
-    Json(names): Json<Vec<String>>
+    Json(names): Json<Vec<String>>,
 ) -> Result<impl IntoResponse, AppError> {
     // println!("{:?} {:?}", pagination, names);
     let start = pagination.offset;
@@ -47,20 +51,12 @@ async fn sub_slice_names(
         end = names.len();
     }
 
-    let temp_vec: Vec<String> = names[start..end]
-        .iter()
-        .map(|s| s.clone())
-        .collect();
+    let temp_vec: Vec<String> = names[start..end].iter().map(|s| s.clone()).collect();
 
     if pagination.split.is_some() {
         let temp_vec: Vec<Vec<String>> = names[start..end]
             .chunks(pagination.split.unwrap())
-            .map(|s|
-                s
-                    .iter()
-                    .map(|st| st.clone())
-                    .collect::<Vec<String>>()
-            )
+            .map(|s| s.iter().map(|st| st.clone()).collect::<Vec<String>>())
             .collect();
 
         return Ok(serde_json::to_string(&temp_vec).unwrap());
