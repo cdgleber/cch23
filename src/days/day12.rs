@@ -3,13 +3,15 @@ use axum::{
     extract::{ Path, State },
     http::StatusCode,
     response::{ IntoResponse, Response },
-    routing::post,
+    routing::{ get, post },
+    Json,
     Router,
 };
-use jiff::Timestamp;
+use jiff::{ tz::TimeZone, Timestamp };
 use thiserror::Error;
 use tokio::sync::RwLock;
 use ulid::Ulid;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 enum AppError {
@@ -50,15 +52,93 @@ async fn load_packet(
     State(packet_map_state): State<PacketMap>
 ) -> Result<impl IntoResponse, AppError> {
     let packet_map = packet_map_state.read().await;
-    let timestamp = packet_map.get(&packet).unwrap();
-    Ok(format!("{:?}", timestamp))
+    let timestamp = match packet_map.get(&packet) {
+        Some(ts) => ts,
+        None => {
+            return Err(AppError::PacketNotFound);
+        }
+    };
+    let duration = timestamp.duration_until(Timestamp::now());
+    Ok(format!("{}", duration.as_secs()))
+}
+
+async fn ulid_to_uuid(Json(ulids): Json<Vec<String>>) -> Result<impl IntoResponse, AppError> {
+    let mut temp_vec: Vec<Uuid> = Vec::new();
+    for ulid_string in &ulids {
+        let ulid: Ulid = match Ulid::from_string(ulid_string) {
+            Ok(u) => u,
+            Err(_) => {
+                return Err(AppError::ParseULIDError);
+            }
+        };
+        let uuid: Uuid = ulid.into();
+        temp_vec.push(uuid);
+    }
+    temp_vec.reverse();
+    Ok(serde_json::to_string(&temp_vec).unwrap())
+}
+
+async fn ulid_to_dates(
+    Path(weekday): Path<i8>,
+    Json(ulids): Json<Vec<String>>
+) -> Result<impl IntoResponse, AppError> {
+    let mut temp_map: HashMap<&str, u32> = HashMap::from([
+        ("christmas eve", 0u32),
+        ("weekday", 0u32),
+        ("in the future", 0u32),
+        ("LSB is 1", 0u32),
+    ]);
+    for ulid_string in &ulids {
+        let ulid: Ulid = match Ulid::from_string(ulid_string) {
+            Ok(u) => u,
+            Err(_) => {
+                return Err(AppError::ParseULIDError);
+            }
+        };
+        let time: Timestamp = match Timestamp::from_millisecond(ulid.timestamp_ms() as i64) {
+            Ok(t) => t,
+            Err(_) => {
+                return Err(AppError::ParseTimestampError);
+            }
+        };
+
+        let zoned = time.to_zoned(TimeZone::UTC);
+
+        if zoned.month() == 12 && zoned.day() == 24 {
+            temp_map.entry("christmas eve").and_modify(|count| {
+                *count += 1;
+            });
+        }
+
+        if zoned.weekday().to_monday_zero_offset() == weekday {
+            temp_map.entry("weekday").and_modify(|count| {
+                *count += 1;
+            });
+        }
+
+        if time.duration_until(Timestamp::now()).as_secs() < 0 {
+            temp_map.entry("in the future").and_modify(|count| {
+                *count += 1;
+            });
+        }
+
+        if (ulid.0 & 1) == 1 {
+            temp_map.entry("LSB is 1").and_modify(|count| {
+                *count += 1;
+            });
+        }
+    }
+
+    Ok(serde_json::to_string(&temp_map).unwrap())
 }
 
 pub fn router() -> Router {
     let packet_map = Arc::new(RwLock::new(HashMap::<String, Timestamp>::new()));
     Router::new()
         .route("/save/:packet", post(save_packet))
-        .route("/load/:packet", post(load_packet))
+        .route("/load/:packet", get(load_packet))
+        .route("/ulids", post(ulid_to_uuid))
+        .route("/ulids/:weekday", post(ulid_to_dates))
         .with_state(packet_map.clone())
 }
 

@@ -2893,6 +2893,7 @@ dependencies = [
  "tower-cookies",
  "tower-http",
  "ulid",
+ "uuid",
 ]
 
 [[package]]
@@ -3694,6 +3695,8 @@ checksum = "04f903f293d11f31c0c29e4148f6dc0d033a7f80cebc0282bea147611667d289"
 dependencies = [
  "getrandom",
  "rand",
+ "serde",
+ "uuid",
  "web-time 1.1.0",
 ]
 
