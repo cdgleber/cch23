@@ -23,8 +23,8 @@ async fn shelf_elf(body: String) -> impl IntoResponse {
         ("shelf with no elf on it", shelf_without_elf),
     ]);
 
-    println!("{}", body);
-    println!("{:?}", map);
+    // println!("{}", body);
+    // println!("{:?}", map);
 
     serde_json::to_string(&map).unwrap()
 }
