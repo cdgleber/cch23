@@ -74,7 +74,7 @@ impl BakeItems {
         let mut cookies_possible = Vec::new();
         for (ingredient, amount_needed) in &self.recipe {
             if let Some(pantry_amount) = &self.pantry.get(ingredient) {
-                if amount_needed < pantry_amount {
+                if &amount_needed < pantry_amount {
                     cookies_possible.push(**pantry_amount / *amount_needed);
                 } else if *amount_needed != 0i64 {
                     return 0i64;
