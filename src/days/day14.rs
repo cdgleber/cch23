@@ -1,6 +1,12 @@
 use axum::{response::IntoResponse, routing::post, Json, Router};
+use serde::{Deserialize, Serialize};
 
-async fn unsafe_html(Json(insert_html): Json<String>) -> impl IntoResponse {
+#[derive(Debug, Serialize, Deserialize)]
+struct HtmlContent {
+    content: String,
+}
+
+async fn unsafe_html(Json(insert_html): Json<HtmlContent>) -> impl IntoResponse {
     format!(
         r#"<html>
   <head>
@@ -10,11 +16,11 @@ async fn unsafe_html(Json(insert_html): Json<String>) -> impl IntoResponse {
     {}
   </body>
 </html>"#,
-        insert_html
+        insert_html.content
     )
 }
 
-async fn safe_html(Json(insert_html): Json<String>) -> impl IntoResponse {
+async fn safe_html(Json(insert_html): Json<HtmlContent>) -> impl IntoResponse {
     format!(
         r#"<html>
   <head>
@@ -24,7 +30,7 @@ async fn safe_html(Json(insert_html): Json<String>) -> impl IntoResponse {
     {}
   </body>
 </html>"#,
-        html_escape::encode_safe(&insert_html)
+        html_escape::encode_double_quoted_attribute(&insert_html.content)
     )
 }
 
