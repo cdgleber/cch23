@@ -1,5 +1,5 @@
-use axum::{ routing::get, Router };
-use shuttlings_cch23::days::{ day1, day11, day12, day4, day5, day6, day7, day8, minus1 };
+use axum::{routing::get, Router};
+use shuttlings_cch23::days::{day1, day11, day12, day14, day4, day5, day6, day7, day8, minus1};
 async fn hello_world() -> &'static str {
     "Hello, bird!"
 }
@@ -16,6 +16,7 @@ async fn main() -> shuttle_axum::ShuttleAxum {
         .nest("/8", day8::router())
         .nest("/11", day11::router())
         .nest("/12", day12::router())
+        .nest("/14", day14::router())
         .nest("/4", day4::router());
 
     Ok(router.into())
