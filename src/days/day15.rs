@@ -34,7 +34,7 @@ impl NiceInput {
     fn is_nice(&self) -> String {
         let doubled = self.input.chars().any(|c| {
             let doubled_char = format!("{}{}", c, c);
-            &self.input.find(doubled_char).is_some()
+            self.input.find(&doubled_char).is_some()
         });
         if !doubled {
             return "naughty".to_string();
@@ -57,14 +57,14 @@ impl NiceInput {
     }
 }
 
-async fn nice(Json(input): Json<NiceInput>) -> Result<impl IntoResponse, AppError> {
-    // let input: NiceInput = match serde_json::from_str(&body) {
-    //     Ok(input) => input,
-    //     Err(e) => return Err(AppError::ParseError(e)),
-    // };
+async fn nice(body: String) -> Result<impl IntoResponse, AppError> {
+    let input: NiceInput = match serde_json::from_str(&body) {
+        Ok(input) => input,
+        Err(e) => return Err(AppError::ParseError(e)),
+    };
 
     let temp_map = HashMap::from([("result".to_string(), input.is_nice())]);
-    Ok((StatusCode::OK, serde_json::to_string(&temp_map)))
+    Ok((StatusCode::OK, serde_json::to_string(&temp_map).unwrap()))
 }
 
 async fn game(body: String) -> Result<impl IntoResponse, AppError> {
