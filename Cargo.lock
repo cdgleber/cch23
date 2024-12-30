@@ -2896,6 +2896,7 @@ dependencies = [
  "rustemon",
  "serde",
  "serde_json",
+ "sha2",
  "shuttle-axum",
  "shuttle-runtime",
  "thiserror 2.0.9",
